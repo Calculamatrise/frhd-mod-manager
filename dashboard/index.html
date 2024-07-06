@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>User Script Manager</title>
+	<link rel="stylesheet" href="/popup/style.css">
+	<link rel="stylesheet" href="/dashboard/style.css">
+	<script type="module" src="/dashboard/script.js" defer></script>
+</head>
+<body>
+	<nav>
+		<button class="success" id="create">Create</button>
+		<button id="save" disabled>Save Changes</button>
+		<button id="save">Import</button>
+		<button id="save">Export</button>
+		<div class="right">
+			<label for="userscripts">Scripts</label>
+			<label for="settings">Settings</label>
+		</div>
+	</nav>
+	<div class="details userscripts">
+		<input type="radio" name="nav" id="userscripts" checked>
+		<div class="tabs"></div>
+		<pre class="code-editor js" contenteditable style="display: none;"><div></div></pre>
+	</div>
+	<div class="details">
+		<input type="radio" name="nav" id="settings">
+		<label class="ripple disabled">
+			<input type="checkbox" id="hideDisabledScripts" checked disabled>
+			<span>Hide disabled scripts</span>
+		</label>
+		<label class="ripple disabled">
+			<input type="checkbox" id="orderPriority" checked disabled>
+			<span>Order priority</span>
+		</label>
+		<details>
+			<summary class="tab ripple">Advanced</summary>
+			<label class="ripple disabled">
+				<input type="checkbox" id="orderPriority" disabled>
+				<span>Run on game load</span>
+			</label>
+			<button class="tab ripple" id="update" style="text-align: left;width: 100%;">Check for updates</button>
+			<button class="tab ripple" id="reset-settings" style="text-align: left;width: 100%;" title="Reset all the settings to their default state (THIS CANNOT BE UNDONE)">Reset settings</button>
+		</details>
+	</div>
+</body>
+</html>

@@ -8,19 +8,14 @@ export default class CodeEditor extends HTMLElement {
 		this.addEventListener('input', event => {
 			let caret = Caret.get();
 			let line = caret._selection.anchorNode.parentElement.closest('pre');
-			let pos = Caret.getPositionWithin(line); // Caret.getPosition(line);
+			if (!line) return;
+			let pos = Caret.getPosition(line);
 			let insert = null;
 			switch(event.data) {
 			case '\'':
 			case '"':
 			case '`':
 				insert = event.data;
-				console.log(line.textContent, line.textContent.slice(pos - 2, pos), insert)
-				// if (''.padStart(2, insert) === line.textContent.slice(pos - 2, pos)) {
-				// 	// line.replaceChildren(...SyntaxHighlight.parseLine(line.innerText.slice(0, pos - 1) + line.innerText.slice(pos)));
-				// 	// Caret.setPosition(pos + 1, line);
-				// 	return;
-				// }
 				break;
 			case '(':
 				insert = String.fromCharCode(1 + event.data.charCodeAt());
@@ -38,13 +33,8 @@ export default class CodeEditor extends HTMLElement {
 				Caret.setPosition(pos, line);
 				return;
 			} else if (/^['"]$/.test(insert) && ''.padStart(2, insert) === line.textContent.slice(pos - 2, pos)) {
-				// line.replaceChildren(...SyntaxHighlight.parseLine(line.innerText.slice(0, pos - 1) + line.innerText.slice(pos)));
-				// Caret.setPosition(pos + 1, line);
 				return;
 			}
-			// let caret = Caret.get();
-			// let line = caret._selection.anchorNode.parentElement.closest('pre');
-			// line.innerText = line.innerText.slice(0, caret.position) + insert + line.innerText.slice(caret.position);
 			line.replaceChildren(...SyntaxHighlight.parseLine(line.innerText.slice(0, pos) + insert + line.innerText.slice(pos)));
 			Caret.setPosition(pos/* caret.position */, line);
 			// Caret.setPosition(caret.position + insert.length, line);
@@ -69,13 +59,16 @@ export default class CodeEditor extends HTMLElement {
 		});
 		this.addEventListener('paste', event => {
 			event.preventDefault();
+			let caret = Caret.get(this);
 			let pos = Caret.getPosition(this);
-			let prefix = this.innerText.slice(0, pos);
-			let suffix = this.innerText.slice(pos);
+			let selectionWithin = Caret.getSelectionWithin(this);
+			console.log(pos, selectionWithin, caret, caret._selection, Caret.getSelectionWithin(this))
+			// disregard whatever is selected
+			let prefix = this.innerText.slice(0, selectionWithin.start); // this.innerText.slice(0, pos);
+			let suffix = this.innerText.slice(selectionWithin.end /* pos */);
 			let pastedContent = event.clipboardData.getData('text/plain');
-			// insert into position
 			this.setContent(prefix + pastedContent + suffix);
-			Caret.setPosition(pos + pastedContent.length, this)
+			Caret.setPosition(selectionWithin.start /* pos */ + pastedContent.length, this)
 		})
 		new MutationObserver(function(mutations) {
 			for (const mutation of mutations) {
@@ -114,10 +107,10 @@ export default class CodeEditor extends HTMLElement {
 	toString() {
 		let textContent = [];
 		for (let div of this.children) {
-			console.log(div, '"' + div.textContent + '"')
+			// console.log(div, '"' + div.textContent + '"')
 			textContent.push(div.textContent.replace(/\n$/, ''));
 		}
-		console.log(textContent)
+		// console.log(textContent)
 		return textContent.join('\n')
 	}
 }

@@ -17,7 +17,10 @@ localDatabase.on('open', () => {
 			enabled: true,
 			id: crypto.randomUUID(),
 			name: 'New user script'
-		}, data, { updatedTimestamp: Date.now() })
+		}, data)
+	}
+	scriptStore._postprocessDefaults = function(data) {
+		return Object.assign({}, data, { updatedTimestamp: Date.now() })
 	}
 	searchParams.has('create') && create.click();
 	scriptStore.on('cached', entries => {

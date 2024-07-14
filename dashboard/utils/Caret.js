@@ -35,24 +35,49 @@ export default class Caret {
 		return caret
 	}
 
-	static getPosition(parentElement) {
+	static getPosition(node) {
 		let selection = window.getSelection()
 		  , focusOffset = selection.focusOffset;
-		parentElement && parentElement.contains(selection.focusNode) ? focusOffset = this.getPositionWithin(parentElement) : (focusOffset = -1);
+		// selection.containsNode(node);
+		node && node.contains(selection.focusNode) ? focusOffset = this.getPositionWithin(node) : (focusOffset = -1);
 		return focusOffset
 	}
 
-	static getPositionWithin(element) {
+	static getPositionWithin(node) {
 		let caretOffset = 0;
 		let sel = window.getSelection();
 		if (sel.rangeCount > 0) {
 			let range = sel.getRangeAt(0);
 			let preCaretRange = range.cloneRange();
-			preCaretRange.selectNodeContents(element);
+			let childNodes = Array.from(node.childNodes);
+			let endContainerIndex = childNodes.findIndex(element => element.contains(range.endContainer));
+			let previousSibilings = childNodes.filter((_, i) => i < endContainerIndex);
+			preCaretRange.selectNodeContents(node);
 			preCaretRange.setEnd(range.endContainer, range.endOffset);
 			caretOffset = preCaretRange.toString().length;
+			previousSibilings.length > 0 && (caretOffset += previousSibilings.length);
 		}
 		return caretOffset
+	}
+
+	static getSelection(node) {
+		let sel = window.getSelection()
+		  , selection = {
+			start: sel.anchorOffset,
+			end: sel.focusOffset
+		  };
+		  console.log(sel, node)
+		node && node.contains(sel.focusNode) ? selection = this.getSelectionWithin(node) : (focusOffset = -1);
+		return selection
+	}
+
+	static getSelectionWithin(node) {
+		let caretOffset = this.getPositionWithin(node);
+		let sel = window.getSelection();
+		return {
+			start: caretOffset - sel.toString().length,
+			end: caretOffset
+		}
 	}
 
 	static setPosition(chars, element) {

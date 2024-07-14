@@ -7,7 +7,7 @@ localDatabase.on('open', function() {
 	const scriptStore = this.stores.get('scripts');
 	scriptStore.on('cached', entries => {
 		let scripts = document.querySelector('.scripts');
-		for (const entry of entries.values()) {
+		for (const entry of Array.from(entries.values()).sort((a, b) => a.priority - b.priority)) {
 			let tab = scripts.appendChild(document.createElement('label'));
 			tab.classList.add('ripple');
 			tab.dataset.id = entry.id;
@@ -88,7 +88,8 @@ update.addEventListener('click', async () => {
 
 const addScript = document.querySelector('#create');
 addScript.addEventListener('click', () => {
-	chrome.runtime.openOptionsPage()
+	// chrome.runtime.openOptionsPage()
+	window.open(chrome.runtime.getURL('dashboard/index.html?create'))
 }, { passive: true });
 
 for (const item in defaults) {

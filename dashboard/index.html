@@ -19,11 +19,27 @@
 	</nav>
 	<div class="details userscripts">
 		<input type="radio" name="nav" id="userscripts" checked>
-		<div class="tabs"></div>
-		<pre class="code-editor js" contenteditable style="display: none;"><div></div></pre>
+		<table class="scripts">
+			<thead>
+				<tr style="text-align: left;">
+					<!-- <th style="width: 0;"></th> --><!-- <th>Order of Execution</th> -->
+					<th>Name</th>
+					<th>Updated At</th>
+					<th>Created At</th>
+					<th></th>
+				</tr>
+			</thead>
+			<tbody></tbody>
+		</table>
+		<code-editor class="code-editor js" style="display: none;"><pre class="line"><br></pre></code-editor>
+		<!-- <pre class="code-editor js" contenteditable style="display: none;"><div><br></div></pre> -->
 	</div>
 	<div class="details">
 		<input type="radio" name="nav" id="settings">
+		<label class="ripple disabled">
+			<input type="checkbox" id="hideDisabledScripts" disabled>
+			<span>Auto save</span>
+		</label>
 		<label class="ripple disabled">
 			<input type="checkbox" id="hideDisabledScripts" checked disabled>
 			<span>Hide disabled scripts</span>

@@ -18,6 +18,7 @@ body > nav > .right {
 	right: 0;
 }
 
+code-editor { font-family: monospace; }
 dialog {
 	backdrop-filter: blur(0.4rem) brightness(80%);
 	background-color: hsl(210deg 16% 14% / 60%);
@@ -26,21 +27,20 @@ dialog {
 	padding: 2em 4em;
 }
 
-.details.userscripts {
-	box-sizing: border-box;
-	display: flex;
-	height: 100%;
+hr {
+	/* border-color: var(--border-color);
+	border-style: solid; */
+	background-color: var(--border-color);
+	border: none;
+	height: 1px;
 }
 
-.flex {
-	display: flex;
-	gap: 0.25rem;
-}
-
+.action-row { display: flex; }
 .code-editor {
 	background-color: hsl(207, 16%, 12%); /* #282C34 */
 	border-radius: .5em;
 	box-sizing: border-box;
+	caret-color: #ABB2BF;
 	color: hsl(355, 65%, 65%);
 	counter-reset: line;
 	height: 100%;
@@ -51,29 +51,46 @@ dialog {
 	outline: none;
 	overflow: auto;
 	padding: 1em;
+	tab-size: 4;
 	white-space: nowrap;
 	width: 100%;
 }
 
-.code-editor > div { counter-increment: line; }
-.code-editor > div:hover { filter: brightness(1.2); }
-.code-editor > div::before {
+.code-editor > pre { margin: 0; }
+.code-editor > * { counter-increment: line; }
+.code-editor > :hover { backdrop-filter: brightness(1.2); }
+.code-editor > ::before {
 	color: hsl(0deg 0% 50% / 75%);
 	content: counter(line);
-	margin-right: 10px;
-	padding: 10px;
+	display: inline-block;
+	margin-right: 1.5em;
+	min-width: 2em;
+	text-align: right;
 }
 
-.tabs > .tab:has(> :checked) { background-color: hsl(207, 16%, 12%); }
+.scripts > .script:has(> :checked) { background-color: hsl(207, 16%, 12%); }
+.code-editor code:is(.boolean, .null, .number) { color: #D19A58; }
+.code-editor code:is(.bracket, .parenthesis, .parentheses, .symbol) { color: #ABB2BF; }
 .code-editor code.constant { color: #E5C07B; }
 .code-editor code.parameter { font-style: italic; }
 .code-editor code:is(.parameter, .property, .variable) { color: #E06C75; }
 .code-editor code:is(.function, .method) { color: #4FAFE3; }
-.code-editor code.comment { color: #7f848e; }
-.code-editor code.enum { color: #56b6c2; }
+.code-editor :is(code, em).comment { color: #7f848e; }
+.code-editor code:is(.enum, .escape, .sign) { color: #56b6c2; }
 .code-editor code.keyword { color: #C678DD; }
 .code-editor code.string { color: #98C379; }
-.code-editor code.number { color: #D19A58; }
+
+.details.userscripts {
+	box-sizing: border-box;
+	display: flex;
+	height: 100%;
+	overflow: hidden;
+}
+
+.flex {
+	display: flex;
+	gap: 0.25rem;
+}
 
 .max-width > * {
 	/* width: 100%; */
@@ -110,10 +127,10 @@ dialog {
 }
 
 .success { color: green; }
-.tabs {
-	display: flex;
-	flex-direction: column;
-	gap: .25em;
+.scripts {
+	border-collapse: collapse;
+	color: hsl(200deg 50% 80% / 60%);
+	height: fit-content;
 	max-height: 100%;
 	min-width: 14em;
 	overflow: hidden auto;
@@ -121,26 +138,47 @@ dialog {
 	width: -webkit-fill-available;
 }
 
-.tabs:empty::before {
+.scripts > tbody:empty::before {
 	content: "No scripts installed.";
 	display: block;
 	padding: 1em;
 }
 
-/* .tabs:has(+ .code-editor:not(:empty)),*/ .tabs:has(~ .code-editor:not([style="display: none;"])) { width: 20%; }
-.tabs > .tab {
+/* .scripts:has(+ .code-editor:not(:empty)),*/ .scripts:has(~ .code-editor:not([style="display: none;"])) { width: 20%; }
+.scripts:has(~ .code-editor:not([style="display: none;"])) :is(tbody, thead) > * > :not(:first-child, :last-child) { display: none; }
+.scripts:has(~ .code-editor:not([style="display: none;"])) > .script > .metadata:not([data-key="name"]) { display: none; }
+.scripts .script {
+	-webkit-user-select: none;
+	border-radius: 0.25em;
+	/* color: hsl(200deg 100% 90% / 50%); */
+	display: table-row;
+	min-height: 2.5em;
 	overflow: hidden;
-	text-align: left;
 	text-overflow: ellipsis;
+	user-select: none;
 }
 
-.tabs > .tab:not(:hover) > .action-row { display: none; }
-.tabs > .tab > .action-row {
-	bottom: .25em;
+.scripts .script td {
+	border-radius: 0;
+	padding: 0.5em 0.75em;
+}
+
+.scripts .script > td:first-child {
+	border-bottom-left-radius: 0.35em;
+	border-top-left-radius: 0.35em;
+}
+
+.scripts .script > td:last-child {
+	border-bottom-right-radius: 0.35em;
+	border-top-right-radius: 0.35em;
+}
+
+.scripts .script:hover > td { background-color: hsl(207, 16%, 11%); }
+/* .scripts .script:hover { background-color: hsl(207, 16%, 11%); } */
+.scripts .script > .metadata:is([data-key="createdAt"], [data-key="updatedAt"]) { opacity: 0.8; }
+.scripts .script:not(:hover) .action-row { visibility: hidden; }
+.scripts .script > .action-row {
 	display: flex;
-	position: absolute;
-	right: .25em;
-	top: .25em;
+	justify-content: flex-end;
 }
-
-.tabs > .tab > .action-row > button { padding: .25em .5em; }
+.scripts .script > :is(td:first-child, .action-row) > button { padding: .25em .5em; }

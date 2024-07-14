@@ -4,12 +4,14 @@ export default class Store extends EventEmitter {
 	#db = null;
 	cache = new Map();
 	name = null;
-	constructor(name, db) {
+	constructor(name, db, preprocess, postprocess) {
 		super();
 		this.#db = db,
 		this.name = name,
 		this._cache(),
-		Object.defineProperty(this, 'cache', { enumerable: false })
+		Object.defineProperty(this, 'cache', { enumerable: false }),
+		Object.defineProperty(this, '_preprocessDefaults', { value: preprocess || null, writable: true }),
+		Object.defineProperty(this, '_postprocessDefaults', { value: postprocess || null, writable: true })
 	}
 
 	_cache() {
@@ -18,6 +20,11 @@ export default class Store extends EventEmitter {
 				const query = objectStore.getAll();
 				query.addEventListener('error', reject),
 				query.addEventListener('success', ({ target }) => {
+					for (const entryId of Array.from(this.cache.keys()).filter(entryId => -1 === target.result.findIndex(entry => entry.id === entryId))) {
+						let oldValue = this.cache.get(entryId);
+						this.cache.delete(entryId),
+						this.emit('delete', oldValue);
+					}
 					if (target.result.length > 0) {
 						for (const entry of target.result) {
 							this.cache.set(entry.id, entry);
@@ -61,8 +68,10 @@ export default class Store extends EventEmitter {
 				const query = objectStore.delete(key);
 				query.addEventListener('error', reject),
 				query.addEventListener('success', () => {
-					this.emit('delete', this.cache.get(key)),
+					this.#db.dispatchEvent(new Event('stale'));
+					let oldValue = this.cache.get(key);
 					this.cache.delete(key),
+					this.emit('delete', oldValue),
 					resolve(true)
 				})
 			})
@@ -85,12 +94,15 @@ export default class Store extends EventEmitter {
 	}
 
 	set(key, value) {
+		typeof this._preprocessDefaults == 'function' && (value = this._preprocessDefaults(value));
 		if (this.cache.has(key) && JSON.stringify(value) === JSON.stringify(this.cache.get(key))) return Promise.resolve(value);
+		typeof this._postprocessDefaults == 'function' && (value = this._postprocessDefaults(value));
 		return this._createTransaction(objectStore => {
 			return new Promise((resolve, reject) => {
 				const query = objectStore.put(value);
 				query.addEventListener('error', reject),
 				query.addEventListener('success', () => {
+					this.#db.dispatchEvent(new Event('stale')),
 					null !== value && (this.emit('update', this.cache.get(key) || (this.emit('create', value),
 					null), value),
 					this.cache.set(key, value)),

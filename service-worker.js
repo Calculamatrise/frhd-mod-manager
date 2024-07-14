@@ -32,6 +32,13 @@ chrome.storage.local.onChanged.addListener(function({ enabled }) {
 	enabled && setState({ enabled: enabled.newValue })
 });
 
+chrome.storage.session.onChanged.addListener(async function(data) {
+	let _dbKey = 'userscriptsdb_stale';
+	if (!data[_dbKey] || typeof data[_dbKey].newValue != 'number') return;
+	await chrome.userScripts.unregister(),
+	registerUserScripts()
+});
+
 self.addEventListener('activate', function() {
 	chrome.storage.local.get(({ enabled }) => {
 		enabled || setState({ enabled })
@@ -48,7 +55,8 @@ self.addEventListener('install', async function() {
 			settings: Object.assign(defaults, settings)
 		})
 	}),
-	chrome.userScripts.configureWorld({ csp: 'MAIN' })
+	chrome.userScripts.configureWorld({ csp: 'MAIN' }),
+	registerUserScripts()
 }, { once: true });
 
 async function setState({ enabled = true }) {
@@ -69,12 +77,12 @@ function registerUserScripts() {
 	LocalDatabase.open('userscripts').then(database => {
 		const scriptStore = database.stores.get('scripts');
 		scriptStore.on('cached', entries => {
-			for (const entry of Array.from(entries.values())/* .filter(({ enabled }) => enabled) */) {
-				chrome.userScripts.register([Object.assign({}, USER_SCRIPT_TEMPLATE, {
+			chrome.userScripts.register(Array.from(entries.values()).filter(({ enabled }) => enabled).sort((a, b) => a.priority - b.priority).map(entry => {
+				return Object.assign({}, USER_SCRIPT_TEMPLATE, {
 					id: entry.id,
 					js: [{ code: entry.content }]
-				})])
-			}
+				})
+			}))
 		})
 	})
 }

@@ -3,27 +3,48 @@ import defaults from "../constants/defaults.js";
 import LocalDatabase from "../utils/LocalDatabase.js";
 
 globalThis.localDatabase = new LocalDatabase('userscripts');
-localDatabase.on('open', function() {
+localDatabase.addEventListener('open', function() {
 	const scriptStore = this.stores.get('scripts');
-	scriptStore.on('cached', entries => {
-		let scripts = document.querySelector('.scripts');
-		for (const entry of Array.from(entries.values()).sort((a, b) => a.priority - b.priority)) {
-			let tab = scripts.appendChild(document.createElement('label'));
-			tab.classList.add('ripple');
+	scriptStore.addEventListener('cache', async ({ detail: cache }) => {
+		const tabId = await chrome.tabs.query({ active: true, currentWindow: true })
+			.then(([tab]) => tab?.id);
+		const tabInfo = await chrome.storage.session.get()
+			.then(entries => entries[tabId] || null);
+		const activeScripts = document.querySelector('#active-scripts');
+		const disabledScripts = document.querySelector('.disabled-scripts > .scripts');
+		const scripts = document.querySelector('#scripts');
+		const entries = Array.from(cache.values());
+		for (const entry of entries.sort((a, b) => a.priority - b.priority)) {
+			const tab = scripts.appendChild(document.createElement('label'));
+			tab.classList.add('script', 'ripple');
+			tabInfo && tabInfo.activeScriptIds.includes(entry.id) && tab.classList.add('active');
 			tab.dataset.id = entry.id;
-			let checkbox = tab.appendChild(document.createElement('input'));
+			const duplicateName = entries.find(e => e !== entry && e.name === entry.name);
+			if (duplicateName) {
+				tab.dataset.author = entry.author;
+				tab.classList.add('has-duplicate-name');
+			}
+
+			const checkbox = tab.appendChild(document.createElement('input'));
 			checkbox.setAttribute('type', 'checkbox');
 			checkbox.checked = entry.enabled; // ≡ - for sorting/ordering
 			checkbox.addEventListener('change', event => scriptStore.update(entry.id, { enabled: event.target.checked }));
 			tab.append(entry.name);
-			let edit = tab.appendChild(document.createElement('button'));
-			edit.style.setProperty('display', 'inline-block');
-			edit.style.setProperty('float', 'right');
-			edit.style.setProperty('padding', '0 2%');
+
+			const actionRow = tab.appendChild(document.createElement('div'));
+			actionRow.classList.add('action-row');
+			const edit = actionRow.appendChild(document.createElement('button'));
+			edit.style.setProperty('aspect-ratio', 1);
 			edit.innerText = '✎';
 			edit.addEventListener('click', () => {
 				window.open(chrome.runtime.getURL('dashboard/index.html?edit=' + entry.id))
-			})
+			});
+
+			tab.classList.contains('active') && activeScripts.appendChild(tab);
+
+			if (chrome.storage.proxy.local.settings.hideDisabledScripts) {
+				!entry.enabled && disabledScripts.appendChild(tab)
+			}
 		}
 	})
 });
@@ -37,12 +58,11 @@ state.addEventListener('click', function() {
 	chrome.storage.proxy.local.set('enabled', !chrome.storage.proxy.local.get('enabled'))
 }, { passive: true });
 
-chrome.storage.local.onChanged.addListener(({ enabled, settings }) => {
-	settings && restoreSettings(settings.newValue),
+chrome.storage.local.onChanged.addListener(({ enabled }) => {
 	enabled && setState(enabled.newValue)
 });
 
-chrome.storage.local.get(({ badges, enabled, settings }) => {
+chrome.storage.local.get(({ badges, enabled }) => {
 	for (const element of document.querySelectorAll('.notification')) {
 		if (badges === false) {
 			element.classList.remove('notification');
@@ -56,7 +76,6 @@ chrome.storage.local.get(({ badges, enabled, settings }) => {
 		}, { passive: true });
 	}
 
-	restoreSettings(settings),
 	setState(enabled)
 });
 
@@ -88,36 +107,11 @@ update.addEventListener('click', async () => {
 
 const addScript = document.querySelector('#create');
 addScript.addEventListener('click', () => {
-	// chrome.runtime.openOptionsPage()
+	// chrome.runtime.openOptionsPage('?create')
 	window.open(chrome.runtime.getURL('dashboard/index.html?create'))
 }, { passive: true });
-
-for (const item in defaults) {
-	let element = document.getElementById(item);
-	switch (item) {
-	default:
-		element && element.type === 'checkbox' && element.addEventListener('input', ({ target }) => {
-			chrome.storage.proxy.local.settings.set(target.id, target.checked)
-		}, { passive: true })
-	}
-}
-
-document.documentElement.addEventListener('pointerdown', function (event) {
-	this.style.setProperty('--offsetX', event.offsetX),
-	this.style.setProperty('--offsetY', event.offsetY)
-});
 
 function setState(enabled) {
 	state.classList[enabled ? 'add' : 'remove']('enabled');
 	return enabled
-}
-
-function restoreSettings(data) {
-	for (const item in data) {
-		let element = document.getElementById(item);
-		switch (item) {
-		default:
-			element && element.type === 'checkbox' && (element.checked = data[item])
-		}
-	}
 }

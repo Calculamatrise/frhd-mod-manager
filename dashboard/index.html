@@ -1,62 +1,177 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>User Script Manager</title>
-	<link rel="stylesheet" href="/popup/style.css">
+	<title>Script Manager</title>
+	<!-- <link rel="stylesheet" href="/popup/style.css"> -->
 	<link rel="stylesheet" href="/dashboard/style.css">
+	<script src="../assets/scripts/ripple.js"></script>
+	<script type="module" src="../assets/scripts/settings.js"></script>
+	<script src="/dashboard/utils/preserve-state.js" defer></script>
 	<script type="module" src="/dashboard/script.js" defer></script>
 </head>
 <body>
-	<nav>
-		<button class="success" id="create">Create</button>
-		<button id="save" disabled>Save Changes</button>
-		<button id="save">Import</button>
-		<button id="save">Export</button>
-		<div class="right">
-			<label for="userscripts">Scripts</label>
-			<label for="settings">Settings</label>
-		</div>
-	</nav>
-	<div class="details userscripts">
-		<input type="radio" name="nav" id="userscripts" checked>
-		<table class="scripts">
-			<thead>
-				<tr style="text-align: left;">
-					<!-- <th style="width: 0;"></th> --><!-- <th>Order of Execution</th> -->
-					<th>Name</th>
-					<th>Updated At</th>
-					<th>Created At</th>
-					<th></th>
-				</tr>
-			</thead>
-			<tbody></tbody>
-		</table>
-		<code-editor class="code-editor js" style="display: none;"><pre class="line"><br></pre></code-editor>
-		<!-- <pre class="code-editor js" contenteditable style="display: none;"><div><br></div></pre> -->
-	</div>
-	<div class="details">
-		<input type="radio" name="nav" id="settings">
-		<label class="ripple disabled">
-			<input type="checkbox" id="hideDisabledScripts" disabled>
-			<span>Auto save</span>
-		</label>
-		<label class="ripple disabled">
-			<input type="checkbox" id="hideDisabledScripts" checked disabled>
-			<span>Hide disabled scripts</span>
-		</label>
-		<label class="ripple disabled">
-			<input type="checkbox" id="orderPriority" checked disabled>
-			<span>Order priority</span>
-		</label>
-		<details>
-			<summary class="tab ripple">Advanced</summary>
+	<aside id="sidebar">
+		<input type="checkbox" id="sidebar-toggle" hidden>
+		<!-- <header>
+			<input type="search" placeholder="Search..." disabled>
+			<button class="success" id="create">Create</button>
+		</header> -->
+		<nav>
+			<label for="scripts" class="tab ripple">Scripts</label>
+			<!-- <div class="script-list"></div> -->
+			<label for="settings" class="tab ripple">Settings</label>
+		</nav>
+	</aside>
+	<main>
+		<header>
+			<div class="meta">
+				<label for="sidebar-toggle">
+					<svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 -960 960 960" width="24px" fill="#e8eaed">
+						<path d="m313-480 155 156q11 11 11.5 27.5T468-268q-11 11-28 11t-28-11L228-452q-6-6-8.5-13t-2.5-15q0-8 2.5-15t8.5-13l184-184q11-11 27.5-11.5T468-692q11 11 11 28t-11 28L313-480Zm264 0 155 156q11 11 11.5 27.5T732-268q-11 11-28 11t-28-11L492-452q-6-6-8.5-13t-2.5-15q0-8 2.5-15t8.5-13l184-184q11-11 27.5-11.5T732-692q11 11 11 28t-11 28L577-480Z"></path>
+					</svg>
+				</label>
+				<!-- <h2>Script Manager</h2> -->
+			</div>
+			<input type="search" class="search-bar" placeholder="Search...">
+			<div class="action-row">
+				<div class="editor-actions">
+					<button id="save-changes">Save Changes</button>
+				</div>
+				<div class="scripts-actions">
+					<!-- <button class="success" id="create">Create</button> -->
+					<button class="icon" id="import">
+						<svg xmlns="http://www.w3.org/2000/svg" id="import" fill="currentColor" width="2em" height="2em" viewBox="0 0 24 24"><path d="M21,14a1,1,0,0,0-1,1v4a1,1,0,0,1-1,1H5a1,1,0,0,1-1-1V15a1,1,0,0,0-2,0v4a3,3,0,0,0,3,3H19a3,3,0,0,0,3-3V15A1,1,0,0,0,21,14Zm-9.71,1.71a1,1,0,0,0,.33.21.94.94,0,0,0,.76,0,1,1,0,0,0,.33-.21l4-4a1,1,0,0,0-1.42-1.42L13,12.59V3a1,1,0,0,0-2,0v9.59l-2.29-2.3a1,1,0,1,0-1.42,1.42Z"/></svg>
+					</button>
+					<button class="icon" id="export">
+						<svg xmlns="http://www.w3.org/2000/svg" id="export" fill="currentColor" width="2em" height="2em" viewBox="0 0 24 24"><path d="M8.71,7.71,11,5.41V15a1,1,0,0,0,2,0V5.41l2.29,2.3a1,1,0,0,0,1.42,0,1,1,0,0,0,0-1.42l-4-4a1,1,0,0,0-.33-.21,1,1,0,0,0-.76,0,1,1,0,0,0-.33.21l-4,4A1,1,0,1,0,8.71,7.71ZM21,14a1,1,0,0,0-1,1v4a1,1,0,0,1-1,1H5a1,1,0,0,1-1-1V15a1,1,0,0,0-2,0v4a3,3,0,0,0,3,3H19a3,3,0,0,0,3-3V15A1,1,0,0,0,21,14Z"/></svg>
+					</button>
+					<button class="icon success-hover" id="create">
+						<!-- <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" id="create" height="2em" width="2em" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M8 12H16" />
+							<path d="M12 16V8" />
+							<path d="M9 22H15C20 22 22 20 22 15V9C22 4 20 2 15 2H9C4 2 2 4 2 9V15C2 20 4 22 9 22Z" />
+						</svg> -->
+						<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+							<path d="M13.5 3H12H8C6.34315 3 5 4.34315 5 6V18C5 19.6569 6.34315 21 8 21H11M13.5 3L19 8.625M13.5 3V7.625C13.5 8.17728 13.9477 8.625 14.5 8.625H19M19 8.625V11.8125" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+							<path d="M17 15V18M17 21V18M17 18H14M17 18H20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+						</svg>
+					</button>
+				</div>
+			</div>
+		</header>
+		<section class="details scripts">
+			<input type="radio" name="nav" id="scripts" checked>
+			<nav id="tab-list">
+				<template id="tab">
+					<label class="tab">
+						<span>New tab</span>
+						<button class="icon close-icon" data-action="close"></button>
+					</label>
+				</template>
+				<label for="script-list-view" class="icon plus-icon" style="margin: .4em;"></label>
+			</nav>
+			<div class="details script-table">
+				<input type="radio" name="scripts" id="script-list-view" checked>
+				<header>
+					<span>Name</span>
+					<span>Author</span>
+					<span class="version">Version</span>
+					<span class="timestamp">Updated At</span>
+					<span class="timestamp">Created At</span>
+					<span>Actions</span>
+				</header>
+				<template id="label">
+					<label class="script-label" for>
+						<span data-name="name"></span>
+						<span data-name="author"></span>
+						<span data-name="version"></span>
+						<span data-name="updatedTimestamp"></span>
+						<span data-name="createdTimestamp"></span>
+						<span class="action-row">
+							<!-- <button data-action="reorder" disabled>≡</button> -->
+							<button class="icon" data-action="download">
+								<svg xmlns="http://www.w3.org/2000/svg" id="import" fill="currentColor" width="2em" height="2em" viewBox="0 0 24 24"><path d="M21,14a1,1,0,0,0-1,1v4a1,1,0,0,1-1,1H5a1,1,0,0,1-1-1V15a1,1,0,0,0-2,0v4a3,3,0,0,0,3,3H19a3,3,0,0,0,3-3V15A1,1,0,0,0,21,14Zm-9.71,1.71a1,1,0,0,0,.33.21.94.94,0,0,0,.76,0,1,1,0,0,0,.33-.21l4-4a1,1,0,0,0-1.42-1.42L13,12.59V3a1,1,0,0,0-2,0v9.59l-2.29-2.3a1,1,0,1,0-1.42,1.42Z"/></svg>
+							</button>
+							<button class="icon edit-icon" data-action="edit"></button>
+							<button class="icon delete-icon hover-transition" data-action="delete"></button>
+						</span>
+					</label>
+				</template>
+			</div>
+			<template id="editor">
+				<div class="details editor-view">
+					<input type="radio" name="scripts" checked>
+					<code-editor data-lang="js"></code-editor>
+				</div>
+			</template>
+		</section>
+		<section class="details">
+			<input type="radio" name="nav" id="settings">
 			<label class="ripple disabled">
-				<input type="checkbox" id="orderPriority" disabled>
-				<span>Run on game load</span>
+				<input type="checkbox" id="autoSave">
+				<span>Auto save</span>
 			</label>
-			<button class="tab ripple" id="update" style="text-align: left;width: 100%;">Check for updates</button>
-			<button class="tab ripple" id="reset-settings" style="text-align: left;width: 100%;" title="Reset all the settings to their default state (THIS CANNOT BE UNDONE)">Reset settings</button>
-		</details>
-	</div>
+			<label class="ripple disabled">
+				<input type="checkbox" id="orderPriority" checked>
+				<span>Order priority</span>
+			</label>
+			<label class="ripple">
+				<input type="checkbox" id="highlightSyntax" checked>
+				<span>Syntax Highlighting</span>
+			</label>
+			<details>
+				<summary class="tab ripple">Advanced</summary>
+				<label>
+					<span>Debounce Threshold</span>
+					<input type="range" id="debounceThreshold" value="10">
+				</label>
+				<button class="tab ripple" id="reset-settings" style="text-align: left;width: 100%;" title="Reset all the settings to their default state (THIS CANNOT BE UNDONE)" disabled>Reset settings</button>
+			</details>
+		</section>
+	</main>
+	<dialog id="script">
+		<header>
+			<h1>Script</h1>
+			<button class="icon close-icon" data-action="close"></button>
+		</header>
+		<form method="dialog">
+			<label title="name">
+				<input type="text" class="label" name="name" placeholder="New user script" autocomplete="off">
+			</label>
+			<label title="author">
+				<input type="text" name="author" placeholder="You" autocomplete="off">
+			</label>
+			<div class="polyinput-container">
+				<label title="run at">
+					<select name="runAt">
+						<option value="canvas-load">Canvas load</option>
+						<option value="dom-load">Document load</option>
+						<option value="game-load" selected>Game load</option>
+						<option value="initial-keypress">Initial keypress</option>
+					</select>
+				</label>
+				<label title="match">
+					<select name="match">
+						<option value="*" selected>All pages</option>
+						<option value="create">Editor</option>
+						<option value="t/*">Track</option>
+						<option value="u/*">User</option>
+					</select>
+				</label>
+			</div>
+			<div class="polyinput-container">
+				<label title="version">
+					<input type="text" name="version" placeholder="0.0.1" autocomplete="off">
+				</label>
+				<label title="priority">
+					<input type="number" name="priority" placeholder="0" autocomplete="off">
+				</label>
+			</div>
+			<div class="action-row">
+				<button value="submit"></button>
+				<button value="cancel">Close</button>
+			</div>
+		</form>
+	</dialog>
 </body>
 </html>

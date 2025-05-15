@@ -1,27 +1,23 @@
-import EventEmitter from "../shared/EventEmitter.js";
 import Store from "./Store.js";
 
-export default class LocalDatabase extends EventEmitter {
+export default class LocalDatabase extends EventTarget {
 	_db = null;
 	name = null;
 	stores = new Map();
 	version = 0;
-	constructor(name, version) {
+	constructor(name, version, callback = null) {
 		super();
-		let callback = arguments[arguments.length - 1];
-		typeof callback != 'function' && (callback = null);
-		typeof callback == 'function' && this.once('open', callback);
+		typeof callback == 'function' && this.addEventListener('open', callback, { once: true });
 		this.#open(name, version);
 		Object.defineProperty(this, '_db', { enumerable: false }),
-		chrome.storage.session.onChanged.addListener(function(data) {
-			let _dbKey = this.name + 'db_stale';
+		chrome.storage.session.onChanged.addListener(data => {
+			const _dbKey = this.name + 'db_stale';
 			if (!data[_dbKey] || typeof data[_dbKey].newValue != 'number') return;
 			if (data[_dbKey].newValue === this._db.staleVersion) {
 				delete this._db.staleVersion;
-				console.log('yas')
 				return;
 			}
-			this.emit('stale');
+			this.dispatchEvent(new CustomEvent('stale'));
 			for (const store of this.stores.values()) {
 				store._cache()
 			}
@@ -32,39 +28,39 @@ export default class LocalDatabase extends EventEmitter {
 		this.close();
 		return new Promise(async (resolve, reject) => {
 			let req = indexedDB.open(name, Math.max(version || 1, await this.constructor.version(name)));
-			req.addEventListener('error', err => (this.emit('error', err), reject(err)));
+			req.addEventListener('error', err => (this.dispatchEvent(new CustomEvent('error', { detail: err })), reject(err)));
 			req.addEventListener('success', ({ target: { result: db }}) => {
-				this._db = db,
+				this._db = db;
 				this._db.addEventListener('stale', event => {
 					let _dbKey = this.name + 'db_stale';
 					this._db.staleVersion = 1 + (chrome.storage.proxy.session[_dbKey] | 0);
-					chrome.storage.session.set({ [_dbKey]: this._db.staleVersion }),
+					chrome.storage.session.set({ [_dbKey]: this._db.staleVersion });
 					chrome.storage.session.remove(_dbKey)
-				}),
-				this.name = name,
+				});
+				this._db.addEventListener('versionchange', ({ newVersion }) => this.version !== newVersion && this.update(newVersion));
+				this.name = name;
 				this.version = this._db.version;
 				for (const storeName of Array.from(this.stores.keys()).filter(storeName => !this._db.objectStoreNames.contains(storeName))) {
 					this.stores.delete(storeName),
-					this.emit('storeDelete', storeName);
+					this.dispatchEvent(new CustomEvent('storeDelete', { detail: storeName }));
 				}
 				for (const storeName of Array.from(this._db.objectStoreNames).filter(storeName => !this.stores.has(storeName))) {
 					const store = new Store(storeName, this._db);
 					this.stores.set(storeName, store),
-					this.emit('storeCreate', store);
+					this.dispatchEvent(new CustomEvent('storeCreate', { detail: store }));
 				}
 				resolve(db),
-				this.emit('open')
+				this.dispatchEvent(new CustomEvent('open'))
 			});
 			req.addEventListener('upgradeneeded', ({ target: { result: db }}) => {
 				this._db = db,
-				this._db.addEventListener('error', err => this.emit('error', err)),
+				this._db.addEventListener('error', err => this.dispatchEvent(new CustomEvent('error', { detail: err }))),
 				this.#createObjectStore('bin'),
 				this.#createObjectStore('drafts'),
 				this.#createObjectStore('scripts', { keyPath: 'id' }),
 				typeof upgrade == 'function' && upgrade(db),
-				this.emit('upgrade')
-			});
-			req.addEventListener('versionchange', ({ newVersion }) => this.version !== newVersion && this.update(newVersion))
+				this.dispatchEvent(new CustomEvent('upgrade'))
+			})
 		})
 	}
 
@@ -86,9 +82,9 @@ export default class LocalDatabase extends EventEmitter {
 
 	delete() {
 		return new Promise((resolve, reject) => {
-			let req = indexedDB.deleteDatabase(this.name);
-			req.addEventListener('blocked', this.close.bind(this)),
-			req.addEventListener('error', reject),
+			const req = indexedDB.deleteDatabase(this.name);
+			req.addEventListener('blocked', this.close.bind(this));
+			req.addEventListener('error', reject);
 			req.addEventListener('success', resolve)
 		})
 	}
@@ -107,9 +103,8 @@ export default class LocalDatabase extends EventEmitter {
 
 	close() {
 		this._db && (this._db.addEventListener('close', code => {
-			this._db = null,
-			this.emit('close', code),
-			this.off()
+			this._db = null;
+			this.dispatchEvent(new CustomEvent('close', { detail: code }))
 		}, { once: true }),
 		this._db.close())
 	}
@@ -132,15 +127,15 @@ export default class LocalDatabase extends EventEmitter {
 		return new Promise((res, rej) => {
 			const database = new this(name, version);
 			var resolve = () => {
-				database.off('error', reject);
+				database.removeEventListener('error', reject);
 				return res(database)
 			  }
 			  , reject = err => {
-				database.off('open', resolve);
+				database.removeEventListener('open', resolve);
 				return rej(err)
 			  }
-			database.once('open', resolve),
-			database.once('error', reject)
+			database.addEventListener('open', resolve, { once: true }),
+			database.addEventListener('error', reject, { once: true })
 		})
 	}
 

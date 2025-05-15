@@ -3,38 +3,41 @@
 <head>
 	<title>Free Rider Mod Manager</title>
 	<link rel="stylesheet" href="style.css">
+	<script src="../assets/scripts/ripple.js"></script>
+	<script type="module" src="../assets/scripts/settings.js"></script>
 	<script type="module" src="script.js" defer></script>
 </head>
 <body class="view">
 	<button class="tab" id="state"></button>
 	<nav>
-		<label for="scripts" class="tab ripple">Scripts</label>
-		<label for="settings" class="tab ripple">Settings</label>
+		<label for="scripts-toggle" class="tab ripple">Scripts</label>
+		<label for="settings-toggle" class="tab ripple">Settings</label>
 	</nav>
 	<div class="details">
-		<input type="radio" name="nav" id="scripts" checked>
-		<button id="create" style="text-align: left;width: 100%;">Add a script</button>
+		<input type="radio" name="nav" id="scripts-toggle" checked>
+		<div class="scripts" id="active-scripts"></div>
+		<button id="create">Add a script</button>
 		<div class="scripts" id="scripts"></div>
 		<details class="disabled-scripts">
 			<summary class="tab ripple">Show disabled scripts</summary>
-			<div class="scripts" id="disabled"></div>
+			<div class="scripts"></div>
 		</details>
 	</div>
 	<div class="details">
-		<input type="radio" name="nav" id="settings">
-		<label class="ripple disabled">
-			<input type="checkbox" id="hideDisabledScripts" checked disabled>
+		<input type="radio" name="nav" id="settings-toggle">
+		<label class="ripple">
+			<input type="checkbox" id="hideDisabledScripts" checked>
 			<span>Hide disabled scripts</span>
 		</label>
-		<label class="ripple disabled">
-			<input type="checkbox" id="orderPriority" checked disabled>
+		<label class="ripple">
+			<input type="checkbox" id="orderPriority" checked>
 			<span>Order priority</span>
 		</label>
 		<details>
 			<summary class="tab ripple">Advanced</summary>
-			<label class="ripple disabled">
-				<input type="checkbox" id="orderPriority" disabled>
-				<span>Run on game load</span>
+			<label class="ripple">
+				<input type="checkbox" id="developerMode">
+				<span>Developer Mode</span>
 			</label>
 			<button class="tab ripple" id="update" style="text-align: left;width: 100%;">Check for updates</button>
 			<button class="tab ripple" id="reset-settings" style="text-align: left;width: 100%;" title="Reset all the settings to their default state (THIS CANNOT BE UNDONE)">Reset settings</button>

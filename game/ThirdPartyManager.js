@@ -1,19 +1,160 @@
-import EventEmitter from "../shared/EventEmitter.js";
-
-export default class ThirdPartyManager extends EventEmitter {
+class ThirdPartyManager extends EventTarget {
 	#loaded = !1;
 	#cache = new Map();
 	#parent = null;
 	constructor(parent) {
-		super(),
-		parent.thirdParty = this,
+		super();
+		Object.defineProperty(parent, 'thirdParty', { value: this, writable: true });
 		parent.on('stateChange', state => {
-			if (state.preloading === !1 && this.#loaded === !1)
-				this.#loaded = (this.emit('ready', parent.game), !0);
-			this.#loaded && this.emit('stateChange', state)
-		}),
-		this.#parent = parent,
-		window.hasOwnProperty('navigation') && navigation.addEventListener('navigate', () => this.#loaded = !1, { passive: true })
+			if (state.preloading === !1 && this.#loaded === !1) {
+				this.#loaded = (this.dispatchEvent(new CustomEvent('ready', { detail: parent.game })), !0);
+				this.#eventsCreated || this.#createEvents();
+			}
+			this.#loaded && this.dispatchEvent(new CustomEvent('stateChange', { detail: state }))
+		});
+		this.#parent = parent;
+		self.hasOwnProperty('navigation') && navigation.addEventListener('navigate', () => this.#loaded = !1, { passive: true })
+	}
+
+	#eventsCreated = false;
+	#createEvents() {
+		this.#eventsCreated = true;
+		self = this;
+		const currentScene = this.#parent.game.currentScene;
+		this._modProto(currentScene, proto => {
+			const _draw = proto.draw;
+			proto.draw = function() {
+				const defaultPrevented = !self.dispatchEvent(new CustomEvent('beforeDraw', {
+					cancelable: true,
+					detail: this
+				}));
+				if (defaultPrevented) return;
+				_draw.apply(this, arguments);
+				self.dispatchEvent(new CustomEvent('draw', { detail: this }))
+			};
+			const _update = proto.update;
+			proto.update = function() {
+				const defaultPrevented = !self.dispatchEvent(new CustomEvent('beforeUpdate', {
+					cancelable: true,
+					detail: this
+				}));
+				if (defaultPrevented) return;
+				_update.apply(this, arguments);
+				self.dispatchEvent(new CustomEvent('update', { detail: this }))
+			}
+		});
+
+		const playerManager = currentScene.playerManager;
+		const firstPlayer = playerManager.firstPlayer;
+		this._modProto(firstPlayer, proto => {
+			const _createBaseVehicle = proto.createBaseVehicle;
+			proto.createBaseVehicle = function() {
+				const defaultPrevented = !self.dispatchEvent(new CustomEvent('playerUpdate', {
+					cancelable: true,
+					detail: {
+						args: arguments,
+						eventType: 'createBaseVehicle',
+						player: this
+					}
+				}));
+				if (defaultPrevented) return;
+				_createBaseVehicle.apply(this, arguments)
+			};
+			const _createCheckpoint = proto.createCheckpoint;
+			proto.createCheckpoint = function() {
+				const defaultPrevented = !self.dispatchEvent(new CustomEvent('checkpointCreate', {
+					cancelable: true,
+					detail: {
+						args: arguments,
+						player: this
+					}
+				}));
+				if (defaultPrevented) return;
+				_createCheckpoint.apply(this, arguments)
+			};
+			const _createTempVehicle = proto.createTempVehicle;
+			proto.createTempVehicle = function() {
+				const defaultPrevented = !self.dispatchEvent(new CustomEvent('playerUpdate', {
+					cancelable: true,
+					detail: {
+						args: arguments,
+						eventType: 'createTempVehicle',
+						player: this
+					}
+				}));
+				if (defaultPrevented) return;
+				_createTempVehicle.apply(this, arguments)
+			};
+			const _draw = proto.draw;
+			proto.draw = function() {
+				const defaultPrevented = !self.dispatchEvent(new CustomEvent('playerDraw', {
+					cancelable: true,
+					detail: {
+						args: arguments,
+						player: this
+					}
+				}));
+				if (defaultPrevented) return;
+				_draw.apply(this, arguments)
+			};
+			const _reset = proto.reset;
+			proto.reset = function() {
+				const defaultPrevented = !self.dispatchEvent(new CustomEvent('playerUpdate', {
+					cancelable: true,
+					detail: {
+						args: arguments,
+						eventType: 'reset',
+						player: this
+					}
+				}));
+				if (defaultPrevented) return;
+				_reset.apply(this, arguments)
+			};
+			const _restartScene = proto.restartScene;
+			proto.restartScene = function() {
+				const defaultPrevented = !self.dispatchEvent(new CustomEvent('playerUpdate', {
+					cancelable: true,
+					detail: {
+						args: arguments,
+						eventType: 'restartScene',
+						player: this
+					}
+				}));
+				if (defaultPrevented) return;
+				_restartScene.apply(this, arguments)
+			};
+			const _setBaseVehicle = proto.setBaseVehicle;
+			proto.setBaseVehicle = function() {
+				const defaultPrevented = !self.dispatchEvent(new CustomEvent('playerUpdate', {
+					cancelable: true,
+					detail: {
+						args: arguments,
+						eventType: 'setBaseVehicle',
+						player: this
+					}
+				}));
+				if (defaultPrevented) return;
+				_setBaseVehicle.apply(this, arguments)
+			};
+			const _update = proto.update;
+			proto.update = function() {
+				const defaultPrevented = !self.dispatchEvent(new CustomEvent('playerUpdate', {
+					cancelable: true,
+					detail: {
+						args: arguments,
+						player: this
+					}
+				}));
+				if (defaultPrevented) return;
+				_update.apply(this, arguments)
+			}
+		})
+	}
+
+	_modProto(target, callback) {
+		const proto = Object.getPrototypeOf(target);
+		callback(proto);
+		return Object.setPrototypeOf(target, proto)
 	}
 
 	hook(instance, { name, overwrite } = {}) {
@@ -21,7 +162,10 @@ export default class ThirdPartyManager extends EventEmitter {
 		if (overwrite || !this.#cache.has(name)) {
 			this.#cache.set(name, instance);
 			if (!this.hasOwnProperty(name)) {
-				this[name] = instance;
+				Object.defineProperty(this, name, {
+					configurable: true,
+					value: instance
+				});
 			}
 		}
 		return this.#cache.get(name)
@@ -32,13 +176,16 @@ export default class ThirdPartyManager extends EventEmitter {
 	}
 }
 
-let GameManager = window.GameManager;
-let start = Date.now();
+let GameManager = self.GameManager;
+const start = Date.now();
 while (!GameManager) {
-	GameManager = window.GameManager;
+	GameManager = self.GameManager;
 	if (Date.now() - start > 5e3)
 		console.warn('GameManager load timed out.');
 		break;
 }
 
-GameManager && (window.ModManager ||= new ThirdPartyManager(GameManager))
+GameManager && (self.ModManager || Object.defineProperty(self, 'ModManager', {
+	value: new ThirdPartyManager(GameManager),
+	writable: true
+}));

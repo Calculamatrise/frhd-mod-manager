@@ -85,14 +85,14 @@ export default class CodeEditor extends HTMLElement {
 		
 			.suggestions {
 				background-color: hsl(var(--accent) 13% 18%);
+				border: 1px solid hsl(0 0% 0% / 25%);
 				border-radius: 4px;
 				display: flex;
 				flex-direction: column;
-				left: 0;
-				max-height: 90vh;
+				max-height: 25%;
 				max-width: 100%;
 				overflow: auto;
-				position: absolute;
+				position: fixed;
 				top: 100%;
 				z-index: 1;
 			}
@@ -100,7 +100,7 @@ export default class CodeEditor extends HTMLElement {
 			.suggestions > * {
 				background: none;
 				border: none;
-				padding: .4em .75em;
+				padding: .25em .5em;
 				text-align: left;
 			}
 			.suggestions > :hover { background-color: hsl(0deg 0% 50% / 25%) }
@@ -110,6 +110,7 @@ export default class CodeEditor extends HTMLElement {
 
 	autoComplete = false;
 	debounceThreshold = 10;
+	suggestions = false;
 	syntaxHighlights = true;
 	constructor() {
 		super();
@@ -166,7 +167,6 @@ export default class CodeEditor extends HTMLElement {
 			if (data.editorId !== this.editorId) return;
 			switch (data.type) {
 			case 0:
-				console.log('highlighted', data);
 				// this.innerHTML = data.raw;
 				let nodes = [];
 				for (let line of data.lines) {
@@ -394,11 +394,15 @@ export default class CodeEditor extends HTMLElement {
 			}
 		}
 
-		if (this.autoComplete) {
-			let caret = Caret.get(this.root)
-			, { focusNode } = caret.selection
-			, matches = /(\b\w+\.)*\b\w+$/.exec(focusNode.textContent.slice(0, caret.position) + (/^\w$/.test(event.key) ? event.key : ''));
-			matches && this.showAutoComplete(matches[0])
+		if (this.suggestions) {
+			this._suggestions?.remove();
+			const input = /^[\w\.]$/.test(event.key) ? event.key : '';
+			if (event.key.length === 1 && input.length < 1) return;
+			const line = this.caret.closest('.line')
+				, position = Caret.getPositionWithin(line)
+				, text = line.textContent.slice(0, position - (event.key === 'Backspace')) + input
+				, matches = /(?<!\.)(?:\b\w+\.?)*$/.exec(text);
+			matches && matches[0].length > 0 && this.showSuggestions(matches[0])
 		}
 	}
 
@@ -424,11 +428,8 @@ export default class CodeEditor extends HTMLElement {
 
 	getValue() {
 		let textContent = [];
-		for (let div of this.root.children) {
-			// console.log(div, '"' + div.textContent + '"')
+		for (let div of this.root.children)
 			textContent.push(div.textContent);
-		}
-		// console.log(textContent)
 		return textContent.join('\n')
 	}
 
@@ -502,34 +503,85 @@ export default class CodeEditor extends HTMLElement {
 		this.syntaxHighlights && this.highlightContent()
 	}
 
-	// suggestions
-	showAutoComplete(text) {
+	showSuggestions(text) {
 		if (this.dataset.lang !== 'js') return;
 		const tree = text.split('.')
 			, search = tree.pop();
-		self = globalThis;
-		if (tree.length > 0) {
-			for (let key of tree) {
-				if (typeof self[key] != 'object' || self[key] === null) return;
-				self = self[key];
-			}
+		let target = globalThis;
+		while (tree.length) {
+			const key = tree.shift();
+			if (typeof target[key] != 'object' || target[key] === null) return;
+			target = target[key];
 		}
-		const options = Object.getOwnPropertyNames(self).filter(name => name.toLowerCase().includes(search.toLowerCase()));
-		options.sort((a, b) => a < b ? 1 : -1);
-		this.dispatchEvent(new CustomEvent('suggestions', {
+
+		const options = getAllProperties(target).filter(name => name.toLowerCase().includes(search.toLowerCase())); // Object.getOwnPropertyNames(target).filter(name => name.toLowerCase().includes(search.toLowerCase()));
+		search && search.length > 0 && options.sort((a, b) => {
+			let startsA = a.startsWith(search)
+			  , startsB = b.startsWith(search);
+			if (startsA !== startsB)
+				return startsA ? -1 : 1;
+
+			const lowerA = a.toLowerCase()
+				, lowerB = b.toLowerCase();
+			startsA = lowerA.startsWith(search)
+			startsB = lowerB.startsWith(search);
+			if (startsA !== startsB)
+				return startsA ? -1 : 1;
+
+			let indexA = lowerA.indexOf(search)
+			  , indexB = lowerB.indexOf(search);
+			if (indexA !== indexB)
+				return indexA - indexB;
+
+			return lowerA.localeCompare(lowerB)
+		});
+		function getAllProperties(obj) {
+			let props = new Set();
+			while (obj && obj !== Object.prototype) {
+				Object.getOwnPropertyNames(obj)
+					.forEach(p => props.add(p));
+				obj = Object.getPrototypeOf(obj);
+			}
+
+			return Array.from(props)
+		}
+
+		const focusLine = this.caret.closest('.line');
+		const defaultPrevented = !this.dispatchEvent(new CustomEvent('suggestions', {
 			detail: {
-				focusNode: Caret.getFocusNode(),
+				focusLine,
 				options,
 				search
 	 		}
-		}))
+		}));
+		if (defaultPrevented) return;
+		else if (!this._suggestions) {
+			const suggestions = document.createElement('div');
+			suggestions.classList.add('suggestions');
+			this._suggestions = suggestions;
+		}
+
+		this._suggestions.replaceChildren(...options.map(suggestion => {
+			const div = document.createElement('div');
+			div.textContent = suggestion;
+			div.addEventListener('click', () => {
+				focusLine.append(suggestion);
+				this._suggestions.remove()
+			});
+			return div
+		}));
+		this.shadowRoot.appendChild(this._suggestions);
+
+		const boundingRect = focusLine.getBoundingClientRect();
+		this._suggestions.style.setProperty('left', boundingRect.left + 'px');
+		this._suggestions.style.setProperty('top', boundingRect.bottom + 'px')
 	}
 
 	toString() {
 		return this.getValue()
 	}
 
-	static syntaxHighlighter = new Worker('/elements/code-editor/utils/helper.js', { type: 'module' });
+	static syntaxHighlighter = new Worker('/dashboard/elements/code-editor/utils/helper.js', { type: 'module' });
 	static debounce(callback, ...args) {
 		if (typeof callback.debounce == 'undefined')
 			throw new Error("Function must be integrated using CodeEditor#integrateDebounce before debouncing");

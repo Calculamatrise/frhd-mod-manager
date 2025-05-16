@@ -2,6 +2,7 @@ import CSSHighlightFragment from "./csshighlight.js";
 import HTMLHighlightFragment from "./htmlhighlight.js";
 import JavaScriptHighlightFragment from "./jshighlight.js";
 
+// encodeHTMLEntities -- return raw HTML?
 onmessage = function({ data }) {
 	const SyntaxHighlight = parseHighlightFromLanguage(data.lang);
 	delete data.lang;

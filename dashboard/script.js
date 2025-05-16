@@ -120,8 +120,7 @@ localDatabase.addEventListener('open', () => {
 	scriptStore.addEventListener('update', ({ detail: [oldEntry, entry] }) => {
 		null !== oldEntry && updateScriptLabel(entry)
 		// update priorty listing
-		sortScriptLabels();
-		console.log('priority changed')
+		sortScriptLabels()
 	})
 });
 
@@ -231,7 +230,9 @@ function getScriptLabel(data, { createIfNotExists, open } = {}) {
 		const editor = editorClone.querySelector('code-editor');
 		const input = editorClone.querySelector('input[type="radio"]');
 		DOM.Template.editorView.before(editorClone);
+		editor.autoComplete = chrome.storage.proxy.local.settings.autoComplete;
 		editor.syntaxHighlights = chrome.storage.proxy.local.settings.highlightSyntax;
+		editor.suggestions = chrome.storage.proxy.local.settings.showSuggestions;
 		editor.setValue(data.content);
 		editor.addEventListener('change', function() {
 			const hasChanges = data.content !== this.getValue();
@@ -494,8 +495,10 @@ window.addEventListener('popstate', function() {
 
 chrome.storage.local.onChanged.addListener(function({ settings }) {
 	if (!settings) return;
-	const { highlightSyntax } = settings.newValue;
+	const config = settings.newValue;
 	for (const editor of document.querySelectorAll('code-editor')) {
-		editor.syntaxHighlights = highlightSyntax;
+		editor.autoComplete = config.autoComplete;
+		editor.syntaxHighlights = config.highlightSyntax;
+		editor.suggestions = config.showSuggestions;
 	}
 });

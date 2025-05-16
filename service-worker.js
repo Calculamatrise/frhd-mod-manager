@@ -1,21 +1,33 @@
 import defaults from "./constants/defaults.js";
 import LocalDatabase from "./utils/LocalDatabase.js";
 
+const hostnames = [
+	'freeriderhd.com',
+	'frhd.kanoapps.com',
+	'www.freeriderhd.com'
+];
+
 const contentScripts = [{
 	excludeMatches: [
 		"*://*/*\?ajax*",
 		"*://*/*&ajax*",
 		"*://*.com/*api/*"
 	],
-	id: "third-party-helper",
-	js: ["game/ThirdPartyManager.js"],
-	matches: [
-		"*://frhd.kanoapps.com/*",
-		"*://www.freeriderhd.com/*"
-	],
+	id: "script-manager",
+	js: ["game/ThirdPartyScriptManager.js"],
+	matches: hostnames.map(host => `*://${host}/*`),
 	runAt: "document_end",
 	world: "MAIN"
 }];
+
+// chrome.runtime.onMessageExternal.addListener(function(message, sender, sendResponse) {
+// 	let res = "418 I'm a teapot";
+// 	if (/^manifest/i.test(message)) {
+// 		let manifest = chrome.runtime.getManifest();
+// 		/^manifest\.version$/i.test(message) && (res = { version: manifest.version })
+// 	}
+// 	sendResponse(res)
+// });
 
 chrome.runtime.onStartup.addListener(function() {
 	self.dispatchEvent(new ExtendableEvent('activate'))
@@ -33,12 +45,13 @@ chrome.storage.local.onChanged.addListener(function({ enabled }) {
 });
 
 self.addEventListener('activate', function() {
-	chrome.storage.local.get(({ enabled }) => {
+	chrome.storage.local.get(async ({ enabled }) => {
 		typeof enabled != 'undefined' && setState({ enabled })
 	})
 });
 
 self.addEventListener('install', async function() {
+	await chrome.scripting.unregisterContentScripts();
 	chrome.storage.local.get(async ({ enabled = true, settings }) => {
 		chrome.storage.local.set({
 			enabled,
@@ -53,14 +66,16 @@ async function setState({ enabled = true }) {
 	if (enabled) {
 		await chrome.scripting.registerContentScripts(contentScripts);
 		// chrome.webNavigation.onCommitted.addListener(onCommitted, {
-		// 	url: [
-		// 		{ hostEquals: "frhd.kanoapps.com", schemes: ['http', 'https'] },
-		// 		{ hostEquals: "www.freeriderhd.com", schemes: ['http', 'https'] }
-		// 	]
+		// 	url: hostnames.map(hostEquals => ({
+		// 		hostEquals,
+		// 		schemes: ['http', 'https']
+		// 	}))
 		// });
+		await chrome.action.setBadgeBackgroundColor({ color: '#8AB4F8' });
 	} else {
 		// chrome.webNavigation.onCommitted.removeListener(onCommitted);
 		await chrome.scripting.unregisterContentScripts();
+		await chrome.action.setBadgeBackgroundColor({ color: '#808080' });
 	}
 
 	return chrome.action.setIcon({
@@ -73,14 +88,23 @@ async function setState({ enabled = true }) {
 }
 
 chrome.webNavigation.onCommitted.addListener(onCommitted, {
-	url: [
-		{ hostEquals: "frhd.kanoapps.com", schemes: ['http', 'https'] },
-		{ hostEquals: "www.freeriderhd.com", schemes: ['http', 'https'] }
-	]
+	url: hostnames.map(hostEquals => ({
+		hostEquals,
+		schemes: ['http', 'https']
+	}))
 });
 
 async function onCommitted({ tabId, url }) {
+	if (!url || url.startsWith('chrome://') || url.startsWith('chrome-extension://') || url.startsWith('about:') || url === 'data:') return;
+
+	const parsedUrl = new URL(url);
+	if (!hostnames.includes(parsedUrl.hostname)) return;
+
 	await onRemoved(tabId);
+	if (!await new Promise(res => chrome.storage.local.get(({ enabled }) => res(enabled)))) {
+		return chrome.action.setBadgeText({ text: '' });
+	}
+
 	const scripts = await getUserScripts({ enabled: true });
 	for (const userScript of scripts) {
 		await chrome.scripting.executeScript({
@@ -112,6 +136,7 @@ function onRemoved(tabId) {
 }
 
 async function injectUserScript(userScript) {
+	self = userScript;
 	const run = scope => {
 		const script = document.createElement('script');
 		script.textContent = scope ? `(function(){${userScript.content}}).call(globalThis.${scope} || self)` : userScript.content;
@@ -179,13 +204,14 @@ function getUserScripts(options) {
 	return new Promise((res, rej) => {
 		LocalDatabase.open('userscripts').then(database => {
 			const scriptStore = database.stores.get('scripts');
-			scriptStore.addEventListener('cached', ({ detail: cache }) => {
+			scriptStore.addEventListener('cache', ({ detail: cache }) => {
 				let userScripts = Array.from(cache.values()).sort((a, b) => a.priority - b.priority);
 				for (const key in options) {
 					userScripts = userScripts.filter(userScript => userScript[key] === options[key]);
 				}
 				res(userScripts)
 			}, { once: true })
-		})
+		});
+		setTimeout(() => rej(new RangeError('Database read operation timed out')), 3e3)
 	})
 }

@@ -35,7 +35,7 @@ localDatabase.addEventListener('open', function() {
 			actionRow.classList.add('action-row');
 			const edit = actionRow.appendChild(document.createElement('button'));
 			edit.style.setProperty('aspect-ratio', 1);
-			edit.innerText = '✎';
+			edit.innerText = '✎'; // -> right arrow instead -- when clicked, open script settings
 			edit.addEventListener('click', () => {
 				window.open(chrome.runtime.getURL('dashboard/index.html?edit=' + entry.id))
 			});

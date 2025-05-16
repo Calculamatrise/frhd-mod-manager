@@ -146,3 +146,8 @@ export default class LocalDatabase extends EventTarget {
 		})
 	}
 }
+
+Object.defineProperty(self, 'LocalDatabase', {
+	value: LocalDatabase,
+	writable: true
+})

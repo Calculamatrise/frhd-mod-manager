@@ -1,6 +1,6 @@
 import "../../utils/Storage.js";
 import LocalDatabase from "../utils/LocalDatabase.js";
-import "../elements/code-editor/CodeEditor.js";
+import "./elements/code-editor/CodeEditor.js";
 import { formatUserScript, parseUserScript } from "./utils/metadata-block.js";
 import "../shared/Zip.js";
 

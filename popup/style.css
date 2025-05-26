@@ -1,8 +1,10 @@
-@import url("../assets/styles/loading.css");
-@import url("../assets/styles/ripple.css");
+@import url("../styles/icons.css");
+@import url("../styles/loading.css");
+@import url("../styles/ripple.css");
 
 :root {
 	--accent-color: hsl(207, 17%, 10%);
+	--base-hue: 207deg;
 	--background-color: hsl(207, 16%, 14%);
 	--border-color: hsl(200deg 40% 25% / 50%);
 	--text-color: hsl(0 0% 85%);
@@ -192,10 +194,17 @@ label input[type="color"]::-webkit-color-swatch-wrapper { padding: 0 }
 label input[type="color"]::-webkit-color-swatch { border: none }
 
 .action-row { display: inline-flex }
-.action-row > button {
+.action-row > :is(a, button) {
+	display: inline-block;
 	line-height: 100%;
 	padding: .4em;
+	text-align: center;
 	vertical-align: middle;
+}
+
+.action-row > a {
+	color: currentColor;
+	text-decoration: none;
 }
 
 .scripts > label {

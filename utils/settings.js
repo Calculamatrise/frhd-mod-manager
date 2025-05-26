@@ -1,4 +1,4 @@
-import defaults from "../../constants/defaults.js";
+import defaults from "../constants/defaults.js";
 
 chrome.storage.local.onChanged.addListener(({ settings }) => settings && restoreSettings(settings.newValue));
 chrome.storage.local.get(({ settings }) => restoreSettings(settings));

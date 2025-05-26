@@ -1,13 +1,10 @@
 {
 	"name": "Free Rider Mod Manager",
-	"version": "0.0.1.1",
-	"version_name": "0.0.1-patch",
+	"version": "0.0.2",
 	"author": "Calculamatrise",
 	"description": "A mod manager for Free Rider HD.",
 	"manifest_version": 3,
-	"action": {
-		"default_popup": "popup/index.html"
-	},
+	"action": { "default_popup": "popup/index.html" },
 	"background": {
 		"service_worker": "service-worker.js",
 		"type": "module"
@@ -28,7 +25,6 @@
 	},
 	"web_accessible_resources": [{
 		"resources": [
-			"assets/*",
 			"game/*",
 			"shared/*"
 		],

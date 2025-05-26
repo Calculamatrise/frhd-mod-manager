@@ -3,8 +3,8 @@
 <head>
 	<title>Free Rider Mod Manager</title>
 	<link rel="stylesheet" href="style.css">
-	<script src="../assets/scripts/ripple.js"></script>
-	<script type="module" src="../assets/scripts/settings.js"></script>
+	<script src="../utils/ripple.js"></script>
+	<script type="module" src="../utils/settings.js"></script>
 	<script type="module" src="script.js" defer></script>
 </head>
 <body class="view">
@@ -22,6 +22,15 @@
 			<summary class="tab ripple">Show disabled scripts</summary>
 			<div class="scripts"></div>
 		</details>
+		<template id="script-tab">
+			<label class="script ripple">
+				<input type="checkbox" id>
+				<span data-name="name"></span>
+				<span class="action-row">
+					<a class="icon edit-icon" data-action="edit"></a>
+				</span>
+			</label>
+		</template>
 	</div>
 	<div class="details">
 		<input type="radio" name="nav" id="settings-toggle">
@@ -31,6 +40,10 @@
 		</label>
 		<details>
 			<summary class="tab ripple">Advanced</summary>
+			<label class="ripple disabled" title="When enabled, the Game instance will become an event emitter">
+				<input type="checkbox" id="integratedEventEmitter" disabled>
+				<span>Integrate event emitter</span>
+			</label>
 			<label class="ripple">
 				<input type="checkbox" id="developerMode">
 				<span>Developer Mode</span>

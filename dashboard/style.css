@@ -1,6 +1,6 @@
-@import url("../assets/styles/icons.css");
-@import url("../assets/styles/loading.css");
-@import url("../assets/styles/ripple.css");
+@import url("../styles/icons.css");
+@import url("../styles/loading.css");
+@import url("../styles/ripple.css");
 
 :root {
 	--accent-hue: 207deg;
@@ -196,14 +196,18 @@ header > .meta > [for="sidebar-toggle"] { margin-right: .75em; }
 #sidebar input[type="search"],
 #sidebar > nav > * {
 	font-size: .85rem;
+	line-height: 100%;
 	padding: .85em 1.25em;
 	width: 100%;
 }
 
-#sidebar :is(button, label):hover {
-	background-color: hsl(0deg 0% 75% / 10%);
+#sidebar > nav > * {
+	align-items: center;
+	display: flex;
+	gap: .4em;
 }
 
+#sidebar :is(button, label):hover { background-color: hsl(0deg 0% 75% / 10%) }
 #sidebar > header {
 	display: flex;
 	gap: .5em;

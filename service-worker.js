@@ -1,5 +1,5 @@
 import defaults from "./constants/defaults.js";
-import LocalDatabase from "./utils/LocalDatabase.js";
+import LocalDatabase from "./utils/constructors/LocalDatabase.js";
 
 const hostnames = [
 	'freeriderhd.com',
@@ -14,22 +14,13 @@ const contentScripts = [{
 		"*://*.com/*api/*"
 	],
 	id: "script-manager",
-	js: ["game/ThirdPartyScriptManager.js"],
+	js: ["content/ThirdPartyScriptManager.js"],
 	matches: hostnames.map(host => `*://${host}/*`),
 	runAt: "document_end",
 	world: "MAIN"
 }];
 
-// chrome.runtime.onMessageExternal.addListener(function(message, sender, sendResponse) {
-// 	let res = "418 I'm a teapot";
-// 	if (/^manifest/i.test(message)) {
-// 		let manifest = chrome.runtime.getManifest();
-// 		/^manifest\.version$/i.test(message) && (res = { version: manifest.version })
-// 	}
-// 	sendResponse(res)
-// });
-
-chrome.runtime.onStartup.addListener(function() {
+chrome.runtime.onStartup.addListener(async function() {
 	self.dispatchEvent(new ExtendableEvent('activate'))
 });
 
@@ -51,8 +42,7 @@ self.addEventListener('activate', function() {
 });
 
 self.addEventListener('install', async function() {
-	await chrome.scripting.unregisterContentScripts();
-	chrome.storage.local.get(async ({ enabled = true, settings }) => {
+	chrome.storage.local.get(({ enabled = true, settings }) => {
 		chrome.storage.local.set({
 			enabled,
 			badges: true,
@@ -64,7 +54,9 @@ self.addEventListener('install', async function() {
 async function setState({ enabled = true }) {
 	const path = size => `/icons/${enabled ? '' : 'disabled/'}icon_${size}.png`;
 	if (enabled) {
-		await chrome.scripting.registerContentScripts(contentScripts);
+		const scripts = await chrome.scripting.getRegisteredContentScripts();
+		const toRegister = contentScripts.filter(({ id: query }) => -1 === scripts.findIndex(({ id }) => id === query));
+		toRegister.length > 0 && await chrome.scripting.registerContentScripts(toRegister);
 		// chrome.webNavigation.onCommitted.addListener(onCommitted, {
 		// 	url: hostnames.map(hostEquals => ({
 		// 		hostEquals,
@@ -136,12 +128,12 @@ function onRemoved(tabId) {
 }
 
 async function injectUserScript(userScript) {
-	self = userScript;
 	const run = scope => {
+		self = userScript;
 		const script = document.createElement('script');
 		script.textContent = scope ? `(function(){${userScript.content}}).call(globalThis.${scope} || self)` : userScript.content;
 		document.documentElement.appendChild(script);
-		script.remove();
+		script.remove()
 	};
 
 	try {
@@ -151,12 +143,11 @@ async function injectUserScript(userScript) {
 				return new Promise((res, rej) => {
 					const observer = new MutationObserver(() => {
 						const element = document.querySelector(selector);
-						if (element) {
-							clearTimeout(timeout);
-							observer.disconnect();
-							typeof callback == 'function' && callback(element);
-							res(element)
-						}
+						if (!element) return;
+						clearTimeout(timeout);
+						observer.disconnect();
+						typeof callback == 'function' && callback(element);
+						res(element)
 					});
 
 					observer.observe(document, {
@@ -178,10 +169,10 @@ async function injectUserScript(userScript) {
 			window.addEventListener('load', () => run('document'), { once: true });
 			break;
 		case 'game-load':
-			ModManager.addEventListener('ready', () => run('GameManager'));
+			ModManager.addEventListener(ThirdPartyScriptManager.Events.GameReady, () => run('GameManager'));
 			break;
 		case 'initial-keypress':
-			ModManager.addEventListener('ready', function() {
+			ModManager.addEventListener(ThirdPartyScriptManager.Events.GameReady, function() {
 				const firstPlayer = GameManager.game.currentScene.playerManager.firstPlayer
 					, gamepad = firstPlayer._gamepad
 					, onButtonDown = gamepad.onButtonDown;
@@ -215,3 +206,5 @@ function getUserScripts(options) {
 		setTimeout(() => rej(new RangeError('Database read operation timed out')), 3e3)
 	})
 }
+
+import "./utils/external.js";

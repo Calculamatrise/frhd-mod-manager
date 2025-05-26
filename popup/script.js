@@ -1,52 +1,65 @@
-import "../utils/Storage.js";
+import "../utils/storage.js";
 import defaults from "../constants/defaults.js";
-import LocalDatabase from "../utils/LocalDatabase.js";
+import LocalDatabase from "../utils/constructors/LocalDatabase.js";
+
+const scriptSection = document.body.querySelector(':has(> #scripts-toggle)');
+const activeScripts = scriptSection.querySelector('#active-scripts');
+const disabledScripts = scriptSection.querySelector('.disabled-scripts > .scripts');
+const scripts = scriptSection.querySelector('#scripts');
+const tabTemplate = scriptSection.querySelector('template#script-tab');
+
+let scriptStore;
+
+const updateScriptTab = (function updateScriptLabel(entry) {
+	const tab = this.querySelector(`.script[data-id="${entry.id}"]`) || tabTemplate.content.cloneNode(true).firstElementChild
+		, checkbox = tab.querySelector('input[type="checkbox"]:first-child')
+		, name = tab.querySelector('[data-name="name"]');
+
+	checkbox.checked = entry.enabled; // ≡ - for sorting/ordering
+	name.textContent = entry.name;
+
+	if (tab.parentElement === null) {
+		tab.dataset.id = entry.id;
+
+		checkbox.setAttribute('type', 'checkbox');
+		checkbox.addEventListener('change', ({ target }) => scriptStore.update(entry.id, { enabled: target.checked }), { passive: true });
+
+		const actionRow = tab.querySelector('.action-row');
+		const edit = actionRow.querySelector('[data-action="edit"]');
+		edit.setAttribute('target', '_blank');
+		edit.href = chrome.runtime.getURL('dashboard/index.html?edit=' + entry.id);
+
+		scripts.appendChild(tab);
+	}
+
+	if (chrome.storage.proxy.local.settings.hideDisabledScripts) {
+		!entry.enabled && disabledScripts.appendChild(tab)
+	}
+
+	return tab
+}).bind(scriptSection);
 
 globalThis.localDatabase = new LocalDatabase('userscripts');
 localDatabase.addEventListener('open', function() {
-	const scriptStore = this.stores.get('scripts');
+	scriptStore = this.stores.get('scripts');
 	scriptStore.addEventListener('cache', async ({ detail: cache }) => {
 		const tabId = await chrome.tabs.query({ active: true, currentWindow: true })
 			.then(([tab]) => tab?.id);
 		const tabInfo = await chrome.storage.session.get()
 			.then(entries => entries[tabId] || null);
-		const activeScripts = document.querySelector('#active-scripts');
-		const disabledScripts = document.querySelector('.disabled-scripts > .scripts');
-		const scripts = document.querySelector('#scripts');
 		const entries = Array.from(cache.values());
-		for (const entry of entries.sort((a, b) => a.priority - b.priority)) {
-			const tab = scripts.appendChild(document.createElement('label'));
-			tab.classList.add('script', 'ripple');
-			tabInfo && tabInfo.activeScriptIds.includes(entry.id) && tab.classList.add('active');
-			tab.dataset.id = entry.id;
+		for (const entry of entries.filter(({ id }) => !scriptSection.querySelector(`.script[data-id="${id}"]`)).sort((a, b) => a.priority - b.priority)) {
+			const tab = updateScriptTab(entry, { tabInfo });
 			const duplicateName = entries.find(e => e !== entry && e.name === entry.name);
 			if (duplicateName) {
 				tab.dataset.author = entry.author;
 				tab.classList.add('has-duplicate-name');
 			}
 
-			const checkbox = tab.appendChild(document.createElement('input'));
-			checkbox.setAttribute('type', 'checkbox');
-			checkbox.checked = entry.enabled; // ≡ - for sorting/ordering
-			checkbox.addEventListener('change', event => scriptStore.update(entry.id, { enabled: event.target.checked }));
-			tab.append(entry.name);
-
-			const actionRow = tab.appendChild(document.createElement('div'));
-			actionRow.classList.add('action-row');
-			const edit = actionRow.appendChild(document.createElement('button'));
-			edit.style.setProperty('aspect-ratio', 1);
-			edit.innerText = '✎'; // -> right arrow instead -- when clicked, open script settings
-			edit.addEventListener('click', () => {
-				window.open(chrome.runtime.getURL('dashboard/index.html?edit=' + entry.id))
-			});
-
+			tabInfo && tabInfo.activeScriptIds.includes(entry.id) && tab.classList.add('active');
 			tab.classList.contains('active') && activeScripts.appendChild(tab);
-
-			if (chrome.storage.proxy.local.settings.hideDisabledScripts) {
-				!entry.enabled && disabledScripts.appendChild(tab)
-			}
 		}
-	})
+	}, { once: false })
 });
 
 const state = document.querySelector('#state');
